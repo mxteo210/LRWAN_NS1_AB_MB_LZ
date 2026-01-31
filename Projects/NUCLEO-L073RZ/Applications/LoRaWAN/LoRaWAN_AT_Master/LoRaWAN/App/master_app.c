@@ -32,6 +32,7 @@
 
 
 /* USER CODE BEGIN Includes */
+#include "lrwan_ns1_printf.h"
 
 /* USER CODE END Includes */
 
@@ -145,10 +146,17 @@ void MasterApp_Init(void)
   /*UTIL_SEQ_RegTask((1 << CFG_SEQ_Task_Lora_fsm), UTIL_SEQ_RFU, Lora_fsm); */
 
   Lora_Ctx_Init(&LoRaDriverCallbacks, &LoRaDriverParam);
-}
+  {
 
 /* USER CODE BEGIN PFP */
-
+/* --- WORKAROUND DEBUG --- */
+  // On crée une structure vide pour satisfaire le paramètre de la fonction
+  sSendDataBinary_t dummyData;
+  dbg_printf_send("Force Sensor Measure for Debug...\r\n");
+  SensorMeasureData(&dummyData);
+  }
+}
+  /* ------------------------- */
 /* USER CODE END PFP */
 
 /********************* LoRa Part Apllication **********************************/
@@ -164,26 +172,37 @@ static void SensorMeasureData(sSendDataBinary_t *SendDataBinary)
   uint8_t LedState = 0;                /*just for padding*/
 #endif
   // 1. TODO LORA USE_LRWAN_NS1: uncomment those variables below vvv
-  /*
+
   uint16_t pressure = 0;
   int16_t temperature = 0;
   uint8_t humidity = 0;
-  uint32_t BatLevel = 0;               // end device connected to external power source
-  ATEerror_t LoraCmdRetCode;
-  */
+  //uint32_t BatLevel = 0;               // end device connected to external power source
+  //ATEerror_t LoraCmdRetCode;
   uint8_t index = 0;
+
+
   /*read pressure, Humidity and Temperature in order to be send on LoRaWAN*/
   EnvSensors_Read(&Sensor);
 
 #ifdef CAYENNE_LPP
   // 1. TODO LORA USE_LRWAN_NS1: uncomment this variable below vvv too
-  // uint8_t cchannel = 0;
+  //uint8_t cchannel = 0;
 
   // 1. TODO LORA USE_LRWAN_NS1: THEN: print pressure, temperature, humidity on terminal!
   // 1. TODO LORA USE_LRWAN_NS1: with two decimals precision 
   // 1. TODO LORA USE_LRWAN_NS1: #if defined()/#endif style 
   // 1. TODO LORA USE_LRWAN_NS1: hint: use dbg_printf_send() (where is it? how does it work?)
+  pressure    = (uint16_t)(Sensor.pressure);    // en hPa * 100
+  temperature = (int16_t)(Sensor.temperature);  // en °C * 100
+  humidity    = (uint8_t)(Sensor.humidity);     // en % * 100
 
+  /* Affichage terminal avec style #if defined() */
+  #if defined(USE_LRWAN_NS1)
+    dbg_printf_send("\r\n--- SENSOR DATA (CAYENNE) ---\r\n");
+    dbg_printf_send("Pressure:    %d.%02d hPa\r\n", pressure / 100, pressure % 100);
+    dbg_printf_send("Temperature: %d.%02d C\r\n", temperature / 100, abs(temperature % 100));
+    dbg_printf_send("Humidity:    %d.%02d %%\r\n", humidity / 100, humidity % 100);
+  #endif
 
   // 6. TODO LORA: convert temperature, pressure, humidity to data for SendDataBinary->Buffer
   // 6. TODO LORA: hint: decidegrees, decahPas, double humidity percents
