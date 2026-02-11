@@ -20,6 +20,12 @@
 /* Includes ------------------------------------------------------------------*/
 #include "sys_sensors.h"
 /* USER CODE BEGIN Includes */
+#include "lrwan_ns1_temperature.h"
+#include "lrwan_ns1_pressure.h"
+#include "lrwan_ns1_humidity.h"
+
+#include "lrwan_ns1_printf.h"
+
 
 /* USER CODE END Includes */
 
@@ -64,6 +70,11 @@ IKS01A2_ENV_SENSOR_Capabilities_t EnvCapabilities;
 
 // 3. TODO LORA USE_LRWAN_NS1: instanciate handle variables for humidity, temperature and pressure
 // 3. TODO LORA USE_LRWAN_NS1: #if defined()/#endif style
+#if defined(USE_LRWAN_NS1)
+  static void *HUMIDITY_handle = NULL;
+  static void *TEMPERATURE_handle = NULL;
+  static void *PRESSURE_handle = NULL;
+#endif
 
 /* USER CODE END PV */
 
@@ -85,8 +96,22 @@ void EnvSensors_Read(sensor_t *sensor_data)
   // 5. TODO LORA USE_LRWAN_NS1: get values from humidity, temperature and pressure sensors
   // 5. TODO LORA USE_LRWAN_NS1: #if defined()/#elif style (next if becomes an elif)
   // 5. TODO LORA USE_LRWAN_NS1: otherwhise they are always using the same default values (which ones?)
-#if defined (SENSOR_ENABLED) && (SENSOR_ENABLED == 1)
+
+#if defined(USE_LRWAN_NS1)
+  /* Lecture de l'Humidité */
+  BSP_HUMIDITY_Get_Hum(HUMIDITY_handle, &HUMIDITY_Value);
+
+  /* Lecture de la Température */
+  BSP_TEMPERATURE_Get_Temp(TEMPERATURE_handle, &TEMPERATURE_Value);
+
+  /* Lecture de la Pression */
+  BSP_PRESSURE_Get_Press(PRESSURE_handle, &PRESSURE_Value);
+
+/* C'est ici que le IF suivant devient un ELIF */
+#elif defined (SENSOR_ENABLED) && (SENSOR_ENABLED == 1)
+  /* Init */
 #if (USE_IKS01A2_ENV_SENSOR_HTS221_0 == 1)
+
   IKS01A2_ENV_SENSOR_GetValue(HTS221_0, ENV_HUMIDITY, &HUMIDITY_Value);
   IKS01A2_ENV_SENSOR_GetValue(HTS221_0, ENV_TEMPERATURE, &TEMPERATURE_Value);
 #endif /* USE_IKS01A2_ENV_SENSOR_HTS221_0 */
@@ -118,11 +143,26 @@ void  EnvSensors_Init(void)
   // 4. TODO LORA USE_LRWAN_NS1: initialize sensors
   // 4. TODO LORA USE_LRWAN_NS1: #if defined()/#elif style (next if becomes an elif)
   // 4. TODO LORA USE_LRWAN_NS1: and maybe also do something else (are they activated?)
+#if defined(USE_LRWAN_NS1)
+  /* --- Initialisation des capteurs pour le shield LRWAN_NS1 --- */
 
-#if defined (SENSOR_ENABLED) && (SENSOR_ENABLED == 1)
+  /* 1. Init : Configuration hardware */
+  BSP_HUMIDITY_Init(HTS221_H_0, &HUMIDITY_handle);
+  BSP_TEMPERATURE_Init(HTS221_T_0, &TEMPERATURE_handle);
+  BSP_PRESSURE_Init(LPS22HB_0, &PRESSURE_handle);
+
+  /* 2. Enable : Activation des mesures (le "something else" de la consigne) */
+  BSP_HUMIDITY_Sensor_Enable(HUMIDITY_handle);
+  BSP_TEMPERATURE_Sensor_Enable(TEMPERATURE_handle);
+  BSP_PRESSURE_Sensor_Enable(PRESSURE_handle);
+
+  dbg_printf_send("LRWAN_NS1 Sensors Initialized and Enabled\r\n");
+
+#elif defined (SENSOR_ENABLED) && (SENSOR_ENABLED == 1)
   /* Init */
 #if (USE_IKS01A2_ENV_SENSOR_HTS221_0 == 1)
   IKS01A2_ENV_SENSOR_Init(HTS221_0, ENV_TEMPERATURE | ENV_HUMIDITY);
+
 #endif /* USE_IKS01A2_ENV_SENSOR_HTS221_0 */
 #if (USE_IKS01A2_ENV_SENSOR_LPS22HB_0 == 1)
   IKS01A2_ENV_SENSOR_Init(LPS22HB_0, ENV_TEMPERATURE | ENV_PRESSURE);

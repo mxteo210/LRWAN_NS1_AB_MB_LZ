@@ -36,6 +36,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 #include "lrwan_ns1_printf.h"
+#include "lrwan_ns1_temperature.h"
 
 /* Private typedef -----------------------------------------------------------*/
 

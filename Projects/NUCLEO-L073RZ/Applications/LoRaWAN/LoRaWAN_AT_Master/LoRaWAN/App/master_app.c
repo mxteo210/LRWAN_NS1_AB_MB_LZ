@@ -25,7 +25,7 @@
 #include "sys_sensors.h"
 #include "rtc_if.h"
 #include "stdio.h"
-#include "lrwan_ns1_temperature.h"
+
 
 
 #include ATCMD_MODEM        /* preprocessing definition in sys_conf.h*/
@@ -34,6 +34,7 @@
 
 /* USER CODE BEGIN Includes */
 #include "lrwan_ns1_printf.h"
+#include "lrwan_ns1_temperature.h"
 
 /* USER CODE END Includes */
 
