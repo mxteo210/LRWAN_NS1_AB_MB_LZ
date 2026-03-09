@@ -95,19 +95,18 @@ void EnvSensors_Read(sensor_t *sensor_data)
 
   // 5. TODO LORA USE_LRWAN_NS1: get values from humidity, temperature and pressure sensors
   // 5. TODO LORA USE_LRWAN_NS1: #if defined()/#elif style (next if becomes an elif)
-  // 5. TODO LORA USE_LRWAN_NS1: otherwhise they are always using the same default values (which ones?)
+  // 5. TODO LORA USE_NS1: otherwhise they are LRWAN_always using the same default values (which ones?)
 
 #if defined(USE_LRWAN_NS1)
-  /* Lecture de l'Humidité */
+  /*lecture humidité*/
   BSP_HUMIDITY_Get_Hum(HUMIDITY_handle, &HUMIDITY_Value);
 
-  /* Lecture de la Température */
+  /*lecture température*/
   BSP_TEMPERATURE_Get_Temp(TEMPERATURE_handle, &TEMPERATURE_Value);
 
-  /* Lecture de la Pression */
+  /*lecture pression*/
   BSP_PRESSURE_Get_Press(PRESSURE_handle, &PRESSURE_Value);
 
-/* C'est ici que le IF suivant devient un ELIF */
 #elif defined (SENSOR_ENABLED) && (SENSOR_ENABLED == 1)
   /* Init */
 #if (USE_IKS01A2_ENV_SENSOR_HTS221_0 == 1)
@@ -127,8 +126,6 @@ void EnvSensors_Read(sensor_t *sensor_data)
   sensor_data->temperature = TEMPERATURE_Value;
   sensor_data->pressure    = PRESSURE_Value;
 
-  sensor_data->latitude  = (int32_t)((STSOP_LATTITUDE  * MAX_GPS_POS) / 90);
-  sensor_data->longitude = (int32_t)((STSOP_LONGITUDE  * MAX_GPS_POS) / 180);
   /* USER CODE BEGIN EnvSensors_Read_Last */
 
   /* USER CODE END EnvSensors_Read_Last */
@@ -144,14 +141,14 @@ void  EnvSensors_Init(void)
   // 4. TODO LORA USE_LRWAN_NS1: #if defined()/#elif style (next if becomes an elif)
   // 4. TODO LORA USE_LRWAN_NS1: and maybe also do something else (are they activated?)
 #if defined(USE_LRWAN_NS1)
-  /* --- Initialisation des capteurs pour le shield LRWAN_NS1 --- */
+  /* initialisation des capteurs pour le shield LRWAN_NS1 */
 
-  /* 1. Init : Configuration hardware */
+  /* 1. init : Configuration hardware */
   BSP_HUMIDITY_Init(HTS221_H_0, &HUMIDITY_handle);
   BSP_TEMPERATURE_Init(HTS221_T_0, &TEMPERATURE_handle);
-  BSP_PRESSURE_Init(LPS22HB_0, &PRESSURE_handle);
+  BSP_PRESSURE_Init(PRESSURE_SENSORS_AUTO, &PRESSURE_handle);
 
-  /* 2. Enable : Activation des mesures (le "something else" de la consigne) */
+  /* 2. enable : Activation des mesures */
   BSP_HUMIDITY_Sensor_Enable(HUMIDITY_handle);
   BSP_TEMPERATURE_Sensor_Enable(TEMPERATURE_handle);
   BSP_PRESSURE_Sensor_Enable(PRESSURE_handle);

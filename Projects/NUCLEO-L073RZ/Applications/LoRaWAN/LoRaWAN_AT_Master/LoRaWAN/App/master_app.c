@@ -148,15 +148,7 @@ void MasterApp_Init(void)
   /*UTIL_SEQ_RegTask((1 << CFG_SEQ_Task_Lora_fsm), UTIL_SEQ_RFU, Lora_fsm); */
 
   Lora_Ctx_Init(&LoRaDriverCallbacks, &LoRaDriverParam);
-  {
 
-/* USER CODE BEGIN PFP */
-/* --- WORKAROUND DEBUG --- */
-  // On crée une structure vide pour satisfaire le paramètre de la fonction
-  sSendDataBinary_t dummyData;
-  dbg_printf_send("Force Sensor Measure for Debug...\r\n");
-  SensorMeasureData(&dummyData);
-  }
 }
   /* ------------------------- */
 /* USER CODE END PFP */
@@ -175,11 +167,10 @@ static void SensorMeasureData(sSendDataBinary_t *SendDataBinary)
 #endif
   // 1. TODO LORA USE_LRWAN_NS1: uncomment those variables below vvv
 
-  uint16_t pressure = 0;
-  int16_t temperature = 0;
-  uint8_t humidity = 0;
+  //uint16_t pressure = 0;
+  //int16_t temperature = 0;
+  //uint8_t humidity = 0;
   //uint32_t BatLevel = 0;               // end device connected to external power source
-  //ATEerror_t LoraCmdRetCode;
   uint8_t index = 0;
 
 
@@ -187,32 +178,146 @@ static void SensorMeasureData(sSendDataBinary_t *SendDataBinary)
   EnvSensors_Read(&Sensor);
 
 #ifdef CAYENNE_LPP
+
   // 1. TODO LORA USE_LRWAN_NS1: uncomment this variable below vvv too
-  //uint8_t cchannel = 0;
+  uint8_t cchannel = 0;
+  // Déclarations
+	ATEerror_t LoraCmdRetCode;
+	uint32_t BatLevelRaw = 0;
+	uint8_t bat_percentage = 0;
+	uint8_t block_num = 1;
 
   // 1. TODO LORA USE_LRWAN_NS1: THEN: print pressure, temperature, humidity on terminal!
   // 1. TODO LORA USE_LRWAN_NS1: with two decimals precision 
   // 1. TODO LORA USE_LRWAN_NS1: #if defined()/#endif style 
   // 1. TODO LORA USE_LRWAN_NS1: hint: use dbg_printf_send() (where is it? how does it work?)
-  pressure    = (uint16_t)(Sensor.pressure);    // en hPa * 100
-  temperature = (int16_t)(Sensor.temperature);  // en °C * 100
-  humidity    = (uint8_t)(Sensor.humidity);     // en % * 100
+
 
   /* Affichage terminal avec style #if defined() */
-  #if defined(USE_LRWAN_NS1)
-    dbg_printf_send("\r\n--- SENSOR DATA (CAYENNE) ---\r\n");
-    dbg_printf_send("Pressure:    %d.%02d hPa\r\n", pressure / 100, pressure % 100);
-    dbg_printf_send("Temperature: %d.%02d C\r\n", temperature / 100, abs(temperature % 100));
-    dbg_printf_send("Humidity:    %d.%02d %%\r\n", humidity / 100, humidity % 100);
-  #endif
+
+	#if defined(USE_LRWAN_NS1)
+	  dbg_printf_send("\r\nSENSOR DATA\r\n");
+
+	  /* Correction de l'affichage : On gère les Float correctement */
+	  /* Partie entière : (int)Valeur */
+	  /* Partie décimale : (int)(Valeur * 100) % 100 */
+
+	  dbg_printf_send("Pressure:    %d.%02d hPa\r\n",
+					  (int)Sensor.pressure,
+					  (int)(Sensor.pressure * 100) % 100);
+
+	  dbg_printf_send("Temperature: %d.%02d C\r\n",
+					  (int)Sensor.temperature,
+					  abs((int)(Sensor.temperature * 100) % 100)); // abs() gère les temp négatives
+
+	  dbg_printf_send("Humidity:    %d.%02d %%\r\n",
+					  (int)Sensor.humidity,
+					  (int)(Sensor.humidity * 100) % 100);
+
+	  dbg_printf_send("-----------------------------\r\n");
+	#endif
 
   // 6. TODO LORA: convert temperature, pressure, humidity to data for SendDataBinary->Buffer
   // 6. TODO LORA: hint: decidegrees, decahPas, double humidity percents
   // 6. TODO LORA: do the proper final type casts for each of those values!
- 
+
+	  /*1. conversion des données*/
+
+	    /* Température : résolution de 0.1°C -> on multiplie par 10. (Ex: 25.4°C -> 254) */
+	    int16_t temp_payload = (int16_t)(Sensor.temperature * 10.0f);
+
+	    /* Pression : résolution de 0.1 hPa -> on multiplie par 10. (Ex: 1013.2 hPa -> 10132) */
+	    uint16_t press_payload = (uint16_t)(Sensor.pressure * 10.0f);
+
+	    /* Humidité : résolution de 0.5% -> on multiplie par 2. (Ex: 50.5% -> 101) */
+	    uint8_t hum_payload = (uint8_t)(Sensor.humidity * 2.0f);
+
+
+	    /*2. vérification de cohérence*/
+	  #if defined(USE_LRWAN_NS1)
+	    dbg_printf_send("\r\nPayload conversion\r\n");
+
+	    /* On affiche la valeur float d'origine et le résultat de la conversion en entier */
+	    dbg_printf_send("Temp: %d.%02d C   -> Payload Int16: %d\r\n",
+	                    (int)Sensor.temperature, abs((int)(Sensor.temperature * 100) % 100), temp_payload);
+
+	    dbg_printf_send("Pres: %d.%02d hPa -> Payload Uint16: %u\r\n",
+	                    (int)Sensor.pressure, (int)(Sensor.pressure * 100) % 100, press_payload);
+
+	    dbg_printf_send("Hum:  %d.%02d %%  -> Payload Uint8:  %u\r\n",
+	                    (int)Sensor.humidity, (int)(Sensor.humidity * 100) % 100, hum_payload);
+
+	  #endif
   // 7. TODO LORA: create your data payload as per defined in the practical work
   // 7. TODO LORA: you will write into the SendDataBinary->Buffer
- 
+
+	      /*1. affichage sécurisé des flottants*/
+	    #if defined(USE_LRWAN_NS1)
+	      dbg_printf_send("\r\nSENSOR DATA\r\n");
+	      dbg_printf_send("Pressure:    %d.%02d hPa\r\n", (int)Sensor.pressure, (int)(Sensor.pressure * 100) % 100);
+	      dbg_printf_send("Temperature: %d.%02d C\r\n", (int)Sensor.temperature, abs((int)(Sensor.temperature * 100) % 100));
+	      dbg_printf_send("Humidity:    %d.%02d %%\r\n", (int)Sensor.humidity, (int)(Sensor.humidity * 100) % 100);
+	      dbg_printf_send("-----------------------------\r\n");
+	    #endif
+
+
+	      /*2. acquisition batterie*/
+	      LoraCmdRetCode = Lora_GetBatLevel(&BatLevelRaw);
+
+	    #if defined(USE_LRWAN_NS1)
+	      /* on utilise le bon code de retour demandé */
+	      if (LoraCmdRetCode != ATCTL_RET_CMD_VDD) {
+	          BatLevelRaw = 0;
+	      }
+	    #endif
+
+	      /* sécurité pour ne pas dépasser 100% */
+	      if (BatLevelRaw >= 254U) {
+	          bat_percentage = 100U;
+	      } else {
+	          bat_percentage = (uint8_t)((BatLevelRaw * 100U) / 254U);
+	      }
+	      dbg_printf_send("Battery: Raw=%lu -> %u %%\r\n", BatLevelRaw, bat_percentage);
+
+	        /*3. construction du payload*/
+			//identifiant de groupe
+			char group_id[] = "AB_MB_LZ";
+			uint8_t group_id_len = sizeof(group_id) - 1;
+
+			SendDataBinary->Buffer[index++] = block_num++;
+			SendDataBinary->Buffer[index++] = LPP_DATATYPE_FRAME_IDENTIFIER;
+			SendDataBinary->Buffer[index++] = group_id_len;
+			for(int i = 0; i < group_id_len; i++) {
+				SendDataBinary->Buffer[index++] = group_id[i];
+			}
+
+	      /*Batterie*/
+	      SendDataBinary->Buffer[index++] = block_num++;                  // bloc 2
+	      SendDataBinary->Buffer[index++] = LPP_DATATYPE_DIGITAL_INPUT;   // id: 0x00
+	      SendDataBinary->Buffer[index++] = 1;                            // taille: 1 octet
+	      SendDataBinary->Buffer[index++] = bat_percentage;               // pourcentage batterie
+
+	      /*Température*/
+	      SendDataBinary->Buffer[index++] = block_num++;                  // bloc 3
+	      SendDataBinary->Buffer[index++] = LPP_DATATYPE_TEMPERATURE;     // id: 0x67
+	      SendDataBinary->Buffer[index++] = 2;                            // taille: 2 octets
+	      SendDataBinary->Buffer[index++] = (temp_payload >> 8) & 0xFF;   // MSB temp
+	      SendDataBinary->Buffer[index++] = temp_payload & 0xFF;          // LSB temp
+
+	      /*Humidité*/
+	      SendDataBinary->Buffer[index++] = block_num++;                  // bloc 4
+	      SendDataBinary->Buffer[index++] = LPP_DATATYPE_HUMIDITY;        // id: 0x68
+	      SendDataBinary->Buffer[index++] = 1;                            // taille: 1 octet
+	      SendDataBinary->Buffer[index++] = hum_payload;                  // humidité
+
+	      /*Pression*/
+	      SendDataBinary->Buffer[index++] = block_num++;                  // bloc 5
+	      SendDataBinary->Buffer[index++] = LPP_DATATYPE_BAROMETER;       // id: 0x73
+	      SendDataBinary->Buffer[index++] = 2;                            // taille: 2 octets
+	      SendDataBinary->Buffer[index++] = (press_payload >> 8) & 0xFF;  // MSB press
+	      SendDataBinary->Buffer[index++] = press_payload & 0xFF;         // LSB press
+
+         (void)cchannel;
 
 #else
 
@@ -260,8 +365,8 @@ static void SensorMeasureData(sSendDataBinary_t *SendDataBinary)
 #endif  /*CAYENNE_LPP*/
 
   // 8. TODO LORA: This is the end of your custom data. Leave the rest below untouched 
-
   SendDataBinary->DataSize = index;
+
 #ifndef USE_LRWAN_NS1
   SendDataBinary->Port = LORAWAN_APP_PORT;
 #endif

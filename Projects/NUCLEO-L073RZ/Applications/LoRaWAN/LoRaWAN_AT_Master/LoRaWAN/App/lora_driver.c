@@ -43,7 +43,7 @@ ATCmd_t gFlagException = AT_END_AT;
 #endif
 
 /* Private typedef -----------------------------------------------------------*/
-
+#include "lrwan_ns1_printf.h"
 
 
 /* Private variable ----------------------------------------------------------*/
@@ -1981,6 +1981,8 @@ void Lora_fsm(void)
         //LoRa_GetDeviceAddress(devAddr); // YB : this function crashes probably because of a bad pointer usage in lrwan_ns1 driver FIXME
 
         Lora_SetJoinMode(LoraDriverParam->JoinMode);
+        /*Sensor reading on slave device*/
+        LoraDriverCallbacks->SensorMeasureData(&SendDataBinary);
 #endif
         DeviceState = DEVICE_READY;
         DBG_PRINTF("Lora module ready\n");
@@ -2171,7 +2173,22 @@ void Lora_fsm(void)
         // call the appropriate Lora driver function to send the binary data we formatted earlier.
         // also: check and print the return code, verbose it and compare against status AT_OK 
 
-    
+        /* Envoi des données binaires sur le réseau LoRaWAN */
+        LoraCmdRetCode = Lora_SendDataBin(&SendDataBinary);
+
+#if defined(USE_LRWAN_NS1)
+        /* Vérification et affichage du statut */
+        if (LoraCmdRetCode == 0)
+        {
+            dbg_printf_send(">>> LORA SEND OK : Data sent\r\n");
+        }
+        else
+        {
+            dbg_printf_send(">>> LORA SEND NOK : Error code %d\r\n", LoraCmdRetCode);
+        }
+#endif
+
+
 #ifndef USE_LRWAN_NS1
         if (LoraCmdRetCode == AT_OK)
         {
